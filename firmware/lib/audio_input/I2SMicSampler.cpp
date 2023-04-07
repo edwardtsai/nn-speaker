@@ -22,9 +22,9 @@ void I2SMicSampler::configureI2S()
 
 void I2SMicSampler::processI2SData(uint8_t *i2sData, size_t bytesRead)
 {
-    int32_t *samples = (int32_t *)i2sData;
-    for (int i = 0; i < bytesRead / 4; i++)
+    int16_t *samples = (int16_t *)i2sData;
+    for (int i = 0; i < bytesRead / 2; i+=2)
     {
-        addSample(samples[i] >> 11);
+        addSample(samples[i]);
     }
 }

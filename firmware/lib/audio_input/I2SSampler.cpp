@@ -22,10 +22,11 @@ void i2sReaderTask(void *param)
     {
         // wait for some data to arrive on the queue
         i2s_event_t evt;
-        if (xQueueReceive(sampler->m_i2s_queue, &evt, portMAX_DELAY) == pdPASS)
+        if (1)//(xQueueReceive(sampler->m_i2s_queue, &evt, portMAX_DELAY) == pdPASS)
         {
-            if (evt.type == I2S_EVENT_RX_DONE)
+            if (1)//(evt.type == I2S_EVENT_RX_DONE)
             {
+                Serial.println("RX start");
                 size_t bytesRead = 0;
                 do
                 {
@@ -57,9 +58,9 @@ void I2SSampler::start(i2s_port_t i2s_port, i2s_config_t &i2s_config, TaskHandle
     m_i2s_port = i2s_port;
     m_processor_task_handle = processor_task_handle;
     //install and start i2s driver
-    i2s_driver_install(m_i2s_port, &i2s_config, 4, &m_i2s_queue);
+//    i2s_driver_install(m_i2s_port, &i2s_config, 4, &m_i2s_queue);
     // set up the I2S configuration from the subclass
-    configureI2S();
+//    configureI2S();
     // start a task to read samples
     xTaskCreate(i2sReaderTask, "i2s Reader Task", 4096, this, 1, &m_reader_task_handle);
 }

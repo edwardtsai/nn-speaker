@@ -9,7 +9,7 @@
 #include "I2SOutput.h"
 
 // number of frames to try and send at once (a frame is a left and right sample)
-#define NUM_FRAMES_TO_SEND 128
+#define NUM_FRAMES_TO_SEND 256
 
 void i2sWriterTask(void *param)
 {
@@ -25,6 +25,7 @@ void i2sWriterTask(void *param)
         {
             if (evt.type == I2S_EVENT_TX_DONE)
             {
+                Serial.println("TX start");
                 size_t bytesWritten = 0;
                 do
                 {
@@ -64,9 +65,10 @@ void i2sWriterTask(void *param)
     }
 }
 
-void I2SOutput::start(i2s_port_t i2sPort, i2s_pin_config_t &i2sPins)
+void I2SOutput::start(i2s_port_t i2sPort, i2s_pin_config_t &i2sPins, i2s_config_t i2sConfig)
 {
     // i2s config for writing both channels of I2S
+    /*
     i2s_config_t i2sConfig = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
         .sample_rate = 16000,
@@ -79,6 +81,7 @@ void I2SOutput::start(i2s_port_t i2sPort, i2s_pin_config_t &i2sPins)
         .use_apll = false,
         .tx_desc_auto_clear = true,
         .fixed_mclk = 0};
+    */
     m_i2sPort = i2sPort;
     //install and start i2s driver
     i2s_driver_install(m_i2sPort, &i2sConfig, 4, &m_i2sQueue);

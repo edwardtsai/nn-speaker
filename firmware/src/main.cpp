@@ -11,6 +11,7 @@
 #include "IntentProcessor.h"
 #include "Speaker.h"
 #include "IndicatorLight.h"
+#include "AudioKitHAL.h"
 
 // i2s config for using the internal ADC
 i2s_config_t adcI2SConfig = {
@@ -18,7 +19,7 @@ i2s_config_t adcI2SConfig = {
     .sample_rate = 16000,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
-    .communication_format = I2S_COMM_FORMAT_I2S_LSB,
+    .communication_format = I2S_COMM_FORMAT_STAND_MSB,
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
     .dma_buf_count = 4,
     .dma_buf_len = 64,
@@ -32,13 +33,34 @@ i2s_config_t i2sMemsConfigBothChannels = {
     .sample_rate = 16000,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
     .channel_format = I2S_MIC_CHANNEL,
-    .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
+    .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S),
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
     .dma_buf_count = 4,
     .dma_buf_len = 64,
     .use_apll = false,
     .tx_desc_auto_clear = false,
     .fixed_mclk = 0};
+
+// i2s config for codec
+i2s_config_t i2sCodecConfig = {
+    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_TX),
+    .sample_rate = 16000,
+    .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
+    .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S),
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .dma_buf_count = 4,
+    .dma_buf_len = 64,
+    .use_apll = false,
+    .tx_desc_auto_clear = false,
+    .fixed_mclk = 0};
+
+// i2s codec pins
+i2s_pin_config_t i2s_codec_pins = {
+    .bck_io_num = 5,
+    .ws_io_num = 25,
+    .data_out_num = 26,
+    .data_in_num = 35};
 
 // i2s microphone pins
 i2s_pin_config_t i2s_mic_pins = {
@@ -53,6 +75,17 @@ i2s_pin_config_t i2s_speaker_pins = {
     .ws_io_num = I2S_SPEAKER_LEFT_RIGHT_CLOCK,
     .data_out_num = I2S_SPEAKER_SERIAL_DATA,
     .data_in_num = I2S_PIN_NO_CHANGE};
+
+void es8388_init(void)
+{
+    AudioKit kit;
+    auto cfg = kit.defaultConfig(AudioInputOutput);
+    cfg.sample_rate = AUDIO_HAL_16K_SAMPLES;
+    cfg.i2s_active = false;
+    Serial.println("set AudioKit");
+    kit.begin(cfg);
+    kit.setVolume(100);
+}
 
 // This task does all the heavy lifting for our application
 void applicationTask(void *param)
@@ -83,8 +116,8 @@ void setup()
   if (WiFi.waitForConnectResult() != WL_CONNECTED)
   {
     Serial.println("Connection Failed! Rebooting...");
-    delay(5000);
-    ESP.restart();
+    //delay(5000);
+    //ESP.restart();
   }
   Serial.printf("Total heap: %d\n", ESP.getHeapSize());
   Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
@@ -94,10 +127,11 @@ void setup()
   // make sure we don't get killed for our long running tasks
   esp_task_wdt_init(10, false);
 
+  es8388_init();
   // start up the I2S input (from either an I2S microphone or Analogue microphone via the ADC)
 #ifdef USE_I2S_MIC_INPUT
   // Direct i2s input from INMP441 or the SPH0645
-  I2SSampler *i2s_sampler = new I2SMicSampler(i2s_mic_pins, false);
+  I2SSampler *i2s_sampler = new I2SMicSampler(i2s_codec_pins, false);
 #else
   // Use the internal ADC
   I2SSampler *i2s_sampler = new ADCSampler(ADC_UNIT_1, ADC_MIC_CHANNEL);
@@ -105,7 +139,7 @@ void setup()
 
   // start the i2s speaker output
   I2SOutput *i2s_output = new I2SOutput();
-  i2s_output->start(I2S_NUM_1, i2s_speaker_pins);
+  i2s_output->start(I2S_NUM_0, i2s_codec_pins, i2sCodecConfig);
   Speaker *speaker = new Speaker(i2s_output);
 
   // indicator light to show when we are listening
@@ -113,9 +147,11 @@ void setup()
 
   // and the intent processor
   IntentProcessor *intent_processor = new IntentProcessor(speaker);
+  /*
   intent_processor->addDevice("kitchen", GPIO_NUM_5);
   intent_processor->addDevice("bedroom", GPIO_NUM_21);
   intent_processor->addDevice("table", GPIO_NUM_23);
+  */
 
   // create our application
   Application *application = new Application(i2s_sampler, intent_processor, speaker, indicator_light);
@@ -126,7 +162,7 @@ void setup()
 
   // start sampling from i2s device - use I2S_NUM_0 as that's the one that supports the internal ADC
 #ifdef USE_I2S_MIC_INPUT
-  i2s_sampler->start(I2S_NUM_0, i2sMemsConfigBothChannels, applicationTaskHandle);
+  i2s_sampler->start(I2S_NUM_0, i2sCodecConfig, applicationTaskHandle);
 #else
   i2s_sampler->start(I2S_NUM_0, adcI2SConfig, applicationTaskHandle);
 #endif

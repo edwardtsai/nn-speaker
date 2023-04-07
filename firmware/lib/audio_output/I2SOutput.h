@@ -26,7 +26,7 @@ public:
     {
         m_sample_generator = NULL;
     }
-    void start(i2s_port_t i2sPort, i2s_pin_config_t &i2sPins);
+    void start(i2s_port_t i2sPort, i2s_pin_config_t &i2sPins, i2s_config_t i2sConfig);
     void setSampleGenerator(SampleSource *sample_generator);
     friend void i2sWriterTask(void *param);
 };
